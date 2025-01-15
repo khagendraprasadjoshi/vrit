@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Carousel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .carousel-container {
+            position: relative;
+            height: 500px;
+            width: 300px;
+            overflow: hidden;
+        }
+
+        .carousel-track {
+            position: relative;
+            height: 100%;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .carousel-item {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.5s ease-in-out;
+        }
+
+        .carousel-item.active {
+            transform: translateY(150px) scale(1);
+            opacity: 1;
+            z-index: 2;
+        }
+
+        .carousel-item.prev {
+            transform: translateY(0) scale(0.8);
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        .carousel-item.next {
+            transform: translateY(300px) scale(0.8);
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        .carousel-item.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .carousel-content {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .carousel-content h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .carousel-content p {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .nav-button {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            z-index: 3;
+            border-radius: 5px;
+        }
+
+        .prev-button {
+            top: 20px;
+        }
+
+        .next-button {
+            bottom: 20px;
+        }
+
+        .nav-button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="carousel-container">
+        <button class="nav-button prev-button">▲</button>
+        <div class="carousel-track">
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <h2>Item 1</h2>
+                    <p>First slide content goes here</p>
+                </div>
+            </div>
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <h2>Item 2</h2>
+                    <p>Second slide content goes here</p>
+                </div>
+            </div>
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <h2>Item 3</h2>
+                    <p>Third slide content goes here</p>
+                </div>
+            </div>
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <h2>Item 4</h2>
+                    <p>Fourth slide content goes here</p>
+                </div>
+            </div>
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <h2>Item 5</h2>
+                    <p>Fifth slide content goes here</p>
+                </div>
+            </div>
+        </div>
+        <button class="nav-button next-button">▼</button>
+    </div>
+
+    <script>
+class Carousel {
+    constructor(container) {
+        this.container = container;
+        this.track = container.querySelector('.carousel-track');
+        this.items = Array.from(container.querySelectorAll('.carousel-item'));
+        this.currentIndex = 0;
+
+        this.prevButton = container.querySelector('.prev-button');
+        this.nextButton = container.querySelector('.next-button');
+
+        this.init();
+        this.addEventListeners();
+    }
+
+    init() {
+        // Set initial positions
+        this.updateCarousel();
+    }
+
+    updateCarousel() {
+        this.items.forEach((item, index) => {
+            item.classList.remove('active', 'prev', 'next', 'hidden');
+
+            if (index === this.currentIndex) {
+                item.classList.add('active');
+            } else if (index === this.getRelativeIndex(-1)) {
+                item.classList.add('prev');
+            } else if (index === this.getRelativeIndex(1)) {
+                item.classList.add('next');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        // Update button states (if needed for other purposes)
+        // No disabling of buttons for infinite scrolling
+    }
+
+    getRelativeIndex(offset) {
+        const totalItems = this.items.length;
+        const newIndex = (this.currentIndex + offset + totalItems) % totalItems;
+        return newIndex;
+    }
+
+    prev() {
+        this.currentIndex = this.getRelativeIndex(-1);
+        this.updateCarousel();
+    }
+
+    next() {
+        this.currentIndex = this.getRelativeIndex(1);
+        this.updateCarousel();
+    }
+
+    addEventListeners() {
+        this.prevButton.addEventListener('click', () => this.prev());
+        this.nextButton.addEventListener('click', () => this.next());
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                this.prev();
+            } else if (e.key === 'ArrowDown') {
+                this.next();
+            }
+        });
+    }
+}
+
+        // Initialize the carousel
+        const carousel = new Carousel(document.querySelector('.carousel-container'));
+    </script>
+</body>
+</html>
