@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background: #f4f5f7;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #searchInput {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+
+        .board {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            min-height: calc(100vh - 100px);
+        }
+
+        .column {
+            background: #ebecf0;
+            border-radius: 8px;
+            width: 300px;
+            min-height: 100px;
+            padding: 10px;
+        }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .column-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            cursor: move;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .card.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+
+        .add-card {
+            background: none;
+            border: none;
+            color: #5e6c84;
+            padding: 8px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .add-card:hover {
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+
+        .add-column {
+            background: rgba(0,0,0,0.05);
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            width: 300px;
+            cursor: pointer;
+            font-size: 1.1em;
+            color: #5e6c84;
+        }
+
+        .add-column:hover {
+            background: rgba(0,0,0,0.08);
+        }
+
+        .undo-redo {
+            display: flex;
+            gap: 10px;
+        }
+
+        .undo-redo button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #0079bf;
+            color: white;
+            cursor: pointer;
+        }
+
+        .undo-redo button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search cards..." aria-label="Search cards">
+        </div>
+        <div class="undo-redo">
+            <button id="undoBtn" disabled>Undo</button>
+            <button id="redoBtn" disabled>Redo</button>
+        </div>
+    </div>
+    
+    <div class="board" id="board">
+        <div class="column" draggable="false" data-column-id="todo">
+            <div class="column-header">
+                <h2 class="column-title">To Do</h2>
+            </div>
+            <div class="cards">
+                <div class="card" draggable="true" data-card-id="1">Task 1: Implement drag and drop</div>
+                <div class="card" draggable="true" data-card-id="2">Task 2: Add persistence</div>
+            </div>
+            <button class="add-card">+ Add card</button>
+        </div>
+
+        <div class="column" draggable="false">
+            <div class="column-header">
+                <h2 class="column-title">In Progress</h2>
+            </div>
+            <div class="cards">
+                <div class="card" draggable="true" data-card-id="3">Task 3: Write documentation</div>
+            </div>
+            <button class="add-card">+ Add card</button>
+        </div>
+
+        <div class="column" draggable="false">
+            <div class="column-header">
+                <h2 class="column-title">QA</h2>
+            </div>
+            <div class="cards">
+                <div class="card" draggable="true" data-card-id="4">Task 4: Initial setup</div>
+            </div>
+            <button class="add-card">+ Add card</button>
+        </div>
+
+        <button class="add-column">+ Add Column</button>
+    </div>
+
+    <script>
+        class KanbanBoard {
+            constructor() {
+                this.board = document.getElementById('board');
+                this.searchInput = document.getElementById('searchInput');
+                this.undoBtn = document.getElementById('undoBtn');
+                this.redoBtn = document.getElementById('redoBtn');
+                this.undoStack = [];
+                this.redoStack = [];
+                this.draggedCard = null;
+
+                this.initializeDragAndDrop();
+                this.initializeEventListeners();
+                this.loadFromLocalStorage();
+            }
+
+            initializeDragAndDrop() {
+                document.addEventListener('dragstart', (e) => {
+                    if (e.target.classList.contains('card')) {
+                        this.draggedCard = e.target;
+                        e.target.classList.add('dragging');
+                        e.dataTransfer.setData('text/plain', e.target.dataset.cardId);
+                        e.dataTransfer.effectAllowed = 'move';
+                    }
+                });
+
+                document.addEventListener('dragend', (e) => {
+                    if (e.target.classList.contains('card')) {
+                        e.target.classList.remove('dragging');
+                        this.saveToLocalStorage();
+                    }
+                });
+
+                document.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (this.draggedCard) {
+                        const column = e.target.closest('.column');
+                        if (column) {
+                            const cards = column.querySelector('.cards');
+                            const afterElement = this.getDragAfterElement(cards, e.clientY);
+                            if (afterElement) {
+                                cards.insertBefore(this.draggedCard, afterElement);
+                            } else {
+                                cards.appendChild(this.draggedCard);
+                            }
+                        }
+                    }
+                });
+            }
+
+            getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            initializeEventListeners() {
+                // Search functionality
+                this.searchInput.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const cards = document.querySelectorAll('.card');
+                    cards.forEach(card => {
+                        const text = card.textContent.toLowerCase();
+                        card.style.display = text.includes(searchTerm) ? 'block' : 'none';
+                    });
+                });
+
+                // Add new card
+                document.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('add-card')) {
+                        const column = e.target.closest('.column');
+                        const cards = column.querySelector('.cards');
+                        const cardText = prompt('Enter card text:');
+                        if (cardText) {
+                            const card = this.createCard(cardText);
+                            cards.appendChild(card);
+                            this.saveState();
+                        }
+                    }
+                });
+
+                // Add new column
+                document.querySelector('.add-column').addEventListener('click', () => {
+                    const columnTitle = prompt('Enter column title:');
+                    if (columnTitle) {
+                        const column = this.createColumn(columnTitle);
+                        this.board.insertBefore(column, this.board.lastElementChild);
+                        this.saveState();
+                    }
+                });
+
+                // Undo/Redo
+                this.undoBtn.addEventListener('click', () => this.undo());
+                this.redoBtn.addEventListener('click', () => this.redo());
+            }
+
+            createCard(text) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.draggable = true;
+                card.dataset.cardId = Date.now().toString();
+                card.textContent = text;
+                return card;
+            }
+
+            createColumn(title) {
+                const column = document.createElement('div');
+                column.className = 'column';
+                column.dataset.columnId = Date.now().toString();
+                column.innerHTML = `
+                    <div class="column-header">
+                        <h2 class="column-title">${title}</h2>
+                    </div>
+                    <div class="cards"></div>
+                    <button class="add-card">+ Add card</button>
+                `;
+                return column;
+            }
+
+            saveState() {
+                const state = this.getBoardState();
+                this.undoStack.push(state);
+                this.redoStack = [];
+                this.updateUndoRedoButtons();
+                this.saveToLocalStorage();
+            }
+
+            getBoardState() {
+                return this.board.innerHTML;
+            }
+
+            setBoardState(state) {
+                this.board.innerHTML = state;
+                this.saveToLocalStorage();
+            }
+
+            undo() {
+                if (this.undoStack.length > 0) {
+                    const currentState = this.getBoardState();
+                    this.redoStack.push(currentState);
+                    const previousState = this.undoStack.pop();
+                    this.setBoardState(previousState);
+                    this.updateUndoRedoButtons();
+                }
+            }
+
+            redo() {
+                if (this.redoStack.length > 0) {
+                    const currentState = this.getBoardState();
+                    this.undoStack.push(currentState);
+                    const nextState = this.redoStack.pop();
+                    this.setBoardState(nextState);
+                    this.updateUndoRedoButtons();
+                }
+            }
+
+            updateUndoRedoButtons() {
+                this.undoBtn.disabled = this.undoStack.length === 0;
+                this.redoBtn.disabled = this.redoStack.length === 0;
+            }
+
+            saveToLocalStorage() {
+                localStorage.setItem('kanbanBoard', this.board.innerHTML);
+            }
+
+            loadFromLocalStorage() {
+                const savedBoard = localStorage.getItem('kanbanBoard');
+                if (savedBoard) {
+                    this.board.innerHTML = savedBoard;
+                }
+            }
+        }
+
+        // Initialize the Kanban board
+        const kanban = new KanbanBoard();
+    </script>
+</body>
+</html>
